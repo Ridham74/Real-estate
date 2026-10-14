@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { propertiesData } from "@/data/properties";
 
 export async function GET(request, { params }) {
   try {
@@ -13,11 +14,44 @@ export async function GET(request, { params }) {
       );
     }
 
-    const property = await prisma.property.findUnique({
-      where: { id },
-    });
+    let property = null;
+    try {
+      property = await prisma.property.findUnique({
+        where: { id },
+      });
+    } catch {
+      property = null;
+    }
 
     if (!property) {
+      const mock = propertiesData.find((p) => p.id === id);
+      if (mock) {
+        return NextResponse.json({
+          success: true,
+          data: {
+            id: mock.id,
+            title: mock.title,
+            description: mock.description,
+            price: mock.priceNumeric,
+            purpose: mock.purpose ? mock.purpose.toUpperCase() : "BUY",
+            propertyType: mock.propertyType ? mock.propertyType.toUpperCase() : "APARTMENT",
+            city: mock.city,
+            locality: mock.locality,
+            areaSqFt: mock.areaSqFt,
+            bedrooms: mock.bedrooms,
+            bathrooms: mock.bathrooms,
+            imageUrl: mock.image,
+            images: mock.images || [mock.image],
+            amenities: mock.amenities || [],
+            status: mock.status,
+            furnishing: mock.furnishing,
+            parking: mock.parking,
+            rera: mock.rera,
+            featured: mock.featured,
+          },
+        });
+      }
+
       return NextResponse.json(
         { success: false, error: "Property not found." },
         { status: 404 }

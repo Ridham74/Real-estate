@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { propertiesData } from "@/data/properties";
 
 export async function GET(request) {
   try {
@@ -100,11 +101,75 @@ export async function GET(request) {
       data: formatted,
     });
   } catch (error) {
-    console.error("GET /api/properties error:", error);
-    return NextResponse.json(
-      { success: false, error: "Failed to retrieve properties" },
-      { status: 500 }
-    );
+    console.warn("GET /api/properties falling back to propertiesData:", error.message);
+
+    try {
+      const { searchParams } = new URL(request.url);
+      const city = searchParams.get("city");
+      const purpose = searchParams.get("purpose");
+      const propertyType = searchParams.get("propertyType");
+      const minPrice = searchParams.get("minPrice");
+      const maxPrice = searchParams.get("maxPrice");
+      const keyword = searchParams.get("keyword");
+
+      let filtered = propertiesData.map((p) => ({
+        id: p.id,
+        title: p.title,
+        description: p.description,
+        price: p.priceNumeric,
+        purpose: p.purpose ? p.purpose.toUpperCase() : "BUY",
+        propertyType: p.propertyType ? p.propertyType.toUpperCase() : "APARTMENT",
+        city: p.city,
+        locality: p.locality,
+        areaSqFt: p.areaSqFt,
+        bedrooms: p.bedrooms,
+        bathrooms: p.bathrooms,
+        imageUrl: p.image,
+        images: p.images || [p.image],
+        amenities: p.amenities || [],
+        status: p.status,
+        furnishing: p.furnishing,
+        parking: p.parking,
+        rera: p.rera,
+        featured: p.featured,
+      }));
+
+      if (city && city !== "All Cities") {
+        filtered = filtered.filter((p) => p.city.toLowerCase() === city.toLowerCase());
+      }
+      if (purpose && purpose !== "All Purposes") {
+        filtered = filtered.filter((p) => p.purpose.toLowerCase() === purpose.toLowerCase());
+      }
+      if (propertyType && propertyType !== "All Types") {
+        filtered = filtered.filter((p) => p.propertyType.toLowerCase().includes(propertyType.toLowerCase()));
+      }
+      if (minPrice && !isNaN(Number(minPrice))) {
+        filtered = filtered.filter((p) => p.price >= Number(minPrice));
+      }
+      if (maxPrice && !isNaN(Number(maxPrice))) {
+        filtered = filtered.filter((p) => p.price <= Number(maxPrice));
+      }
+      if (keyword && keyword.trim()) {
+        const kw = keyword.toLowerCase().trim();
+        filtered = filtered.filter(
+          (p) =>
+            p.title.toLowerCase().includes(kw) ||
+            p.locality.toLowerCase().includes(kw) ||
+            p.city.toLowerCase().includes(kw)
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        count: filtered.length,
+        data: filtered,
+      });
+    } catch {
+      return NextResponse.json(
+        { success: false, error: "Failed to retrieve properties" },
+        { status: 500 }
+      );
+    }
   }
 }
 

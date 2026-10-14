@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import { propertiesData } from "@/data/properties";
 import { SITE_URL } from "@/lib/siteConfig";
 
 /**
@@ -19,14 +20,25 @@ export default async function sitemap() {
       },
     });
 
-    propertyEntries = properties.map((prop) => ({
+    if (properties && properties.length > 0) {
+      propertyEntries = properties.map((prop) => ({
+        url: `${SITE_URL}/properties/${prop.id}`,
+        lastModified: prop.updatedAt ? new Date(prop.updatedAt) : new Date(),
+        changeFrequency: "weekly",
+        priority: 0.8,
+      }));
+    }
+  } catch (error) {
+    // Fallback below
+  }
+
+  if (propertyEntries.length === 0) {
+    propertyEntries = propertiesData.map((prop) => ({
       url: `${SITE_URL}/properties/${prop.id}`,
-      lastModified: prop.updatedAt ? new Date(prop.updatedAt) : new Date(),
+      lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.8,
     }));
-  } catch (error) {
-    console.error("Failed to generate dynamic sitemap entries:", error);
   }
 
   return [

@@ -2,6 +2,7 @@ import Link from "next/link";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import prisma from "@/lib/prisma";
+import { propertiesData } from "@/data/properties";
 import {
   formatIndianCurrency,
   formatArea,
@@ -11,28 +12,65 @@ import {
 import { SITE_URL, SITE_NAME } from "@/lib/siteConfig";
 import PropertyDetailsClient from "./PropertyDetailsClient";
 
-export const instant = false;
+function getFallbackProperty(id) {
+  const mock = propertiesData.find((p) => p.id === id);
+  if (!mock) return null;
+  return {
+    id: mock.id,
+    title: mock.title,
+    description: mock.description,
+    price: mock.priceNumeric,
+    purpose: mock.purpose ? mock.purpose.toUpperCase() : "BUY",
+    propertyType: mock.propertyType ? mock.propertyType.toUpperCase() : "APARTMENT",
+    city: mock.city,
+    locality: mock.locality,
+    areaSqFt: mock.areaSqFt,
+    bedrooms: mock.bedrooms,
+    bathrooms: mock.bathrooms,
+    imageUrl: mock.image,
+    images: JSON.stringify(mock.images || [mock.image]),
+    amenities: JSON.stringify(mock.amenities || []),
+    status: mock.status,
+    furnishing: mock.furnishing,
+    parking: mock.parking,
+    rera: mock.rera,
+    featured: mock.featured,
+  };
+}
 
 export async function generateStaticParams() {
   try {
     const properties = await prisma.property.findMany({
       select: { id: true },
     });
-    return properties.map((prop) => ({
-      id: prop.id,
-    }));
+    if (properties && properties.length > 0) {
+      return properties.map((prop) => ({
+        id: prop.id,
+      }));
+    }
   } catch (error) {
-    console.error("generateStaticParams error:", error);
-    return [];
+    // Database may not be reachable during build on static CI/Vercel
   }
+  return propertiesData.map((prop) => ({
+    id: prop.id,
+  }));
 }
 
 export async function generateMetadata({ params }) {
   try {
     const resolvedParams = await params;
-    const property = await prisma.property.findUnique({
-      where: { id: resolvedParams.id },
-    });
+    let property = null;
+    try {
+      property = await prisma.property.findUnique({
+        where: { id: resolvedParams.id },
+      });
+    } catch {
+      property = null;
+    }
+
+    if (!property) {
+      property = getFallbackProperty(resolvedParams.id);
+    }
 
     if (!property) {
       return {
@@ -97,7 +135,11 @@ export default async function PropertyPage({ params }) {
       where: { id: resolvedParams.id },
     });
   } catch (err) {
-    console.error("Failed to load property:", err);
+    console.warn("Failed to load property from DB, using fallback:", err.message);
+  }
+
+  if (!property) {
+    property = getFallbackProperty(resolvedParams.id);
   }
 
   if (!property) {
