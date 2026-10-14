@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Property {
+  id           String   @id @default(cuid())
+  title        String
+  description  String
+  price        Float
+  purpose      String   // "BUY" or "RENT"
+  propertyType String   // "APARTMENT", "VILLA", "COMMERCIAL", "PLOT", "PG"
+  city         String   // "Ahmedabad", "Mumbai", "Bangalore", "Pune", "Delhi NCR", "Hyderabad"
+  locality     String
+  areaSqFt     Float
+  bedrooms     Int?
+  bathrooms    Int?
+  imageUrl     String
+  images       String   @default("[]") // JSON string array of gallery photos
+  amenities    String   @default("[]") // JSON string array of amenities
+  status       String   @default("Ready to Move")
+  furnishing   String?
+  parking      String?
+  rera         String?
+  featured     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([city])
+  @@index([purpose])
+  @@index([propertyType])
+  @@index([price])
+}
